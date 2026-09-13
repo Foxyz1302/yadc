@@ -62,7 +62,7 @@ from pathlib import Path
 import pydantic
 from quart import Response, jsonify, request
 
-from yadc.taggers.onnx_preprocess import list_profiles
+from yadc.taggers.onnx_preprocess import PER_TAG_THRESHOLD_COLUMNS, list_profiles
 
 from ..configuration import Configuration
 from ..modules.dataset_watcher import SELF_JOB_ID
@@ -109,8 +109,6 @@ class TagImageBody(pydantic.BaseModel):
     def _validate_per_tag_column(cls, v: str | None) -> str | None:
         if v is None:
             return None
-        from yadc.taggers.onnx import PER_TAG_THRESHOLD_COLUMNS
-
         if v not in PER_TAG_THRESHOLD_COLUMNS:
             raise ValueError(f"Unknown per_tag_column: {v!r}")
         return v
@@ -443,11 +441,8 @@ def api_tagging(
         per_tag_raw = request.args.get("per_tag_thresholds")
         per_tag_enabled = None if per_tag_raw is None else per_tag_raw.lower() in ("true", "1", "yes")
         per_tag_column = request.args.get("per_tag_column")
-        if per_tag_column is not None:
-            from yadc.taggers.onnx import PER_TAG_THRESHOLD_COLUMNS
-
-            if per_tag_column not in PER_TAG_THRESHOLD_COLUMNS:
-                return jsonify_error(f"Unknown per_tag_column: {per_tag_column!r}", status=400, code=ErrorCode.BAD_REQUEST)
+        if per_tag_column is not None and per_tag_column not in PER_TAG_THRESHOLD_COLUMNS:
+            return jsonify_error(f"Unknown per_tag_column: {per_tag_column!r}", status=400, code=ErrorCode.BAD_REQUEST)
 
         thresholds = (
             TaggingThresholds(
@@ -550,11 +545,8 @@ def api_tagging(
             per_tag_raw = request.args.get("per_tag_thresholds")
             per_tag_enabled = None if per_tag_raw is None else per_tag_raw.lower() in ("true", "1", "yes")
             per_tag_column = request.args.get("per_tag_column")
-            if per_tag_column is not None:
-                from yadc.taggers.onnx import PER_TAG_THRESHOLD_COLUMNS as _PER_TAG_COLS
-
-                if per_tag_column not in _PER_TAG_COLS:
-                    return jsonify_error(f"Unknown per_tag_column: {per_tag_column!r}", status=400, code=ErrorCode.BAD_REQUEST)
+            if per_tag_column is not None and per_tag_column not in PER_TAG_THRESHOLD_COLUMNS:
+                return jsonify_error(f"Unknown per_tag_column: {per_tag_column!r}", status=400, code=ErrorCode.BAD_REQUEST)
             thresholds = (
                 TaggingThresholds(
                     rating=rating if rating is not None else configuration.tagger_rating_threshold,

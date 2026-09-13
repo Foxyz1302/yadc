@@ -55,6 +55,7 @@ from yadc.api.services.tag_policy_service import TagPolicyService
 from yadc.taggers import OnnxTagger, TaggerResult, apply_thresholds, extras_tags, format_draft
 from yadc.taggers.base import TagCustomizations, tamer_result_size
 from yadc.taggers.client import TaggerClient
+from yadc.taggers.onnx_preprocess import PER_TAG_THRESHOLD_COLUMNS, _load_per_tag_thresholds
 from yadc.taggers.postprocessing import TagPolicy, apply_policy
 from yadc.taggers.postprocessing import replace_underscores as replace_underscores_in
 from yadc.utils import MemoryLRU, size_units
@@ -172,8 +173,6 @@ class TagJobOptions(pydantic.BaseModel):
     def _validate_per_tag_column(cls, v: str | None) -> str | None:
         if v is None:
             return None
-        from yadc.taggers.onnx import PER_TAG_THRESHOLD_COLUMNS
-
         if v not in PER_TAG_THRESHOLD_COLUMNS:
             raise ValueError(f"Unknown per_tag_column: {v!r}")
         return v
@@ -1404,8 +1403,6 @@ class TaggingService(Service):
         csv_path = self._resolve_label_csv_path()
         if csv_path is None:
             return
-        from yadc.taggers.onnx import _load_per_tag_thresholds
-
         try:
             all_thresholds = _load_per_tag_thresholds(Path(csv_path))
         except FileNotFoundError:

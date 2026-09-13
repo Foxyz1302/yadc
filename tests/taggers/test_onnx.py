@@ -734,7 +734,7 @@ class TestLoadPerTagThresholds:
         return path
 
     def test_reads_supported_columns(self, tmp_path: Path):
-        from yadc.taggers.onnx import _load_per_tag_thresholds
+        from yadc.taggers.onnx_preprocess import _load_per_tag_thresholds
 
         path = self._write_csv(
             tmp_path,
@@ -747,13 +747,13 @@ class TestLoadPerTagThresholds:
         assert result["best_recall"] == {"1girl": 0.5, "solo": 0.6}
 
     def test_returns_none_without_threshold_columns(self, tmp_path: Path):
-        from yadc.taggers.onnx import _load_per_tag_thresholds
+        from yadc.taggers.onnx_preprocess import _load_per_tag_thresholds
 
         path = self._write_csv(tmp_path, ["name", "category"], [["1girl", "0"]])
         assert _load_per_tag_thresholds(path) is None
 
     def test_skips_invalid_values(self, tmp_path: Path):
-        from yadc.taggers.onnx import _load_per_tag_thresholds
+        from yadc.taggers.onnx_preprocess import _load_per_tag_thresholds
 
         path = self._write_csv(
             tmp_path,
@@ -765,7 +765,7 @@ class TestLoadPerTagThresholds:
         assert result["best_threshold"] == {"good": 0.5}
 
     def test_ignores_best_f1_column(self, tmp_path: Path):
-        from yadc.taggers.onnx import _load_per_tag_thresholds
+        from yadc.taggers.onnx_preprocess import _load_per_tag_thresholds
 
         path = self._write_csv(tmp_path, ["name", "category", "best_f1"], [["1girl", "0", "0.7"]])
         assert _load_per_tag_thresholds(path) is None
