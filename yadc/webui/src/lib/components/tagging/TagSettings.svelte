@@ -14,9 +14,7 @@
         TAG_CATEGORIES
     } from '$lib/stores/tagging';
     import type { TagSaveOptions, TaggerResult } from '$lib/stores/tagging';
-    import { taggerStatus } from '$lib/stores/tagging';
-    import { fetchActiveTagger } from '$lib/stores/tagging/api';
-    import { TAGGER_SWAPPED_EVENT } from '$lib/stores/tagging/actions';
+    import { activeTagger, ensureActiveTaggerLoaded } from '$lib/stores/tagging';
     import Checkbox from '$lib/components/ui/Checkbox.svelte';
     import Slider from '$lib/components/ui/Slider.svelte';
     import PolicyList from './PolicyList.svelte';
@@ -40,66 +38,26 @@
         best_recall: 'Best recall (higher)'
     };
 
-    // --- Fetch active tagger to detect per-tag support ---
-    // Re-fetch when a model swap happens: the window event fires on 202
-    // Accepted (immediate attempt, same-tab), and the ``tagger_status`` SSE
-    // stream settles on ready/failed (handles minutes-long first-run HF
-    // downloads, cross-tab).
-
-    let swapInFlight = $state(false);
-    let sawSwapTransition = $state(false);
-
-    async function fetchPerTagSupport(signal?: AbortSignal, retries = 3) {
-        for (let i = 0; i < retries; i++) {
-            try {
-                const res = await fetchActiveTagger(signal);
-                supportsPerTag = res.active?.has_per_tag_thresholds ?? false;
-                perTagColumns = res.active?.per_tag_columns ?? [];
-                if (!supportsPerTag) {
-                    perTagThresholds = false;
-                    perTagColumn = 'best_threshold';
-                } else if (perTagColumns.length > 0 && !perTagColumns.includes(perTagColumn)) {
-                    perTagColumn = perTagColumns[0];
-                }
-                return;
-            } catch {
-                if (i < retries - 1) {
-                    await new Promise((r) => setTimeout(r, 2000));
-                }
-            }
-        }
-    }
+    // --- Per-tag support (from the active-tagger store) ---
+    // Capability comes from ``GET /api/tagger/active`` via the shared
+    // store, which re-fetches whenever the ``tagger_status`` SSE stream
+    // settles — so a swap (including minutes-long first-run HF
+    // downloads) surfaces here in every tab without polling.
 
     $effect(() => {
-        fetchPerTagSupport();
-        const handler = () => {
-            swapInFlight = true;
-            sawSwapTransition = false;
-            fetchPerTagSupport();
-        };
-        window.addEventListener(TAGGER_SWAPPED_EVENT, handler);
-        return () => window.removeEventListener(TAGGER_SWAPPED_EVENT, handler);
+        ensureActiveTaggerLoaded().catch(() => {});
     });
 
     $effect(() => {
-        const status = $taggerStatus;
-        if (!swapInFlight) {
-            return;
+        const active = $activeTagger?.active;
+        supportsPerTag = active?.has_per_tag_thresholds ?? false;
+        perTagColumns = active?.per_tag_columns ?? [];
+        if (!supportsPerTag) {
+            perTagThresholds = false;
+            perTagColumn = 'best_threshold';
+        } else if (perTagColumns.length > 0 && !perTagColumns.includes(perTagColumn)) {
+            perTagColumn = perTagColumns[0];
         }
-        if (
-            status.state === 'stopping' ||
-            status.state === 'stopped' ||
-            status.state === 'starting'
-        ) {
-            sawSwapTransition = true;
-            return;
-        }
-        if (!sawSwapTransition) {
-            return;
-        }
-        swapInFlight = false;
-        sawSwapTransition = false;
-        fetchPerTagSupport();
     });
 
     // --- Save options ---

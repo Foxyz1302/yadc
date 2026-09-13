@@ -211,16 +211,14 @@ export async function saveImageTagsAction(
  *  ``GeneralSettings``). Returns ``null`` when the server refused the swap
  *  (busy / in-progress / error); those refusals are toasted here since they
  *  are immediate. */
-/** Dispatched on window after a successful model swap so sibling components can react. */
-export const TAGGER_SWAPPED_EVENT = 'yadc:tagger-swapped';
-
 export async function swapActiveModelAction(body: SwapTaggerBody): Promise<SwapTaggerBody | null> {
     const result = await apiSwapTaggerModel(body);
     switch (result.status) {
         case 'ok':
             // 202 Accepted — don't toast success yet; the swap (including any
             // first-run model download) is still running in the background.
-            window.dispatchEvent(new CustomEvent(TAGGER_SWAPPED_EVENT));
+            // Progress (and the refreshed active-tagger store) arrives via
+            // the ``tagger_status`` SSE stream.
             return result.response.active
                 ? {
                       kind: result.response.active.kind,
